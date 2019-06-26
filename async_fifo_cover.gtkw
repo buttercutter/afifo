@@ -1,0 +1,126 @@
+[*]
+[*] GTKWave Analyzer v3.3.94 (w)1999-2018 BSI
+[*] Wed Jun 26 02:45:45 2019
+[*]
+[dumpfile] "/home/phung/Downloads/afifo/async_fifo_cover/engine_0/trace13.vcd"
+[dumpfile_mtime] "Wed Jun 26 02:26:31 2019"
+[dumpfile_size] 27924
+[savefile] "/home/phung/Downloads/afifo/async_fifo_cover.gtkw"
+[timestart] 0
+[size] 960 995
+[pos] -51 -51
+*-6.573778 170 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 51
+[signals_width] 390
+[sst_expanded] 0
+[sst_vpaned_height] 278
+@28
+smt_clock
+@420
+smt_step
+@28
+async_fifo.cg_r.clk
+async_fifo.cg_r.enable_in
+async_fifo.cg_r.enable_latch
+async_fifo.cg_r.gclk
+async_fifo.cg_w.clk
+async_fifo.cg_w.enable_in
+async_fifo.cg_w.enable_latch
+async_fifo.cg_w.gclk
+@29
+async_fifo.empty
+@28
+async_fifo.enable_in_r
+async_fifo.enable_in_w
+@22
+async_fifo.f_rclk_count[4:0]
+async_fifo.f_rclk_step[4:0]
+async_fifo.f_wclk_count[4:0]
+async_fifo.f_wclk_step[4:0]
+async_fifo.fifo_data<0>[31:0]
+async_fifo.fifo_data<1>[31:0]
+async_fifo.fifo_data<2>[31:0]
+async_fifo.fifo_data<3>[31:0]
+async_fifo.fifo_data<4>[31:0]
+async_fifo.fifo_data<5>[31:0]
+async_fifo.fifo_data<6>[31:0]
+async_fifo.fifo_data<7>[31:0]
+@28
+async_fifo.first_clock_had_passed
+@22
+async_fifo.first_data[31:0]
+@28
+async_fifo.first_data_is_read
+async_fifo.first_data_is_written
+@22
+async_fifo.first_data_read_out[31:0]
+@28
+async_fifo.first_read_clock_had_passed
+async_fifo.first_write_clock_had_passed
+@29
+async_fifo.full
+@28
+async_fifo.gclk_r
+async_fifo.gclk_w
+@22
+async_fifo.i[31:0]
+@28
+async_fifo.read_clk
+@22
+async_fifo.read_data[31:0]
+@28
+async_fifo.read_en
+async_fifo.read_ptr[2:0]
+async_fifo.read_ptr_gray[2:0]
+async_fifo.read_ptr_gray_nxt[2:0]
+async_fifo.read_ptr_nxt[2:0]
+async_fifo.read_ptr_sync[2:0]
+async_fifo.read_ptr_synchronizer.clk
+async_fifo.read_ptr_synchronizer.data_i[2:0]
+async_fifo.read_ptr_synchronizer.data_o[2:0]
+async_fifo.read_ptr_synchronizer.reset
+async_fifo.read_ptr_synchronizer.sync0[2:0]
+async_fifo.read_ptr_synchronizer.sync1[2:0]
+async_fifo.read_reset
+async_fifo.read_reset_synchronizer.clk
+async_fifo.read_reset_synchronizer.data_i
+async_fifo.read_reset_synchronizer.data_o
+async_fifo.read_reset_synchronizer.reset
+async_fifo.read_reset_synchronizer.sync0
+async_fifo.read_reset_synchronizer.sync1
+@29
+async_fifo.reset_rsync
+async_fifo.reset_wsync
+@22
+async_fifo.second_data[31:0]
+@28
+async_fifo.second_data_is_read
+async_fifo.second_data_is_written
+@22
+async_fifo.second_data_read_out[31:0]
+@28
+async_fifo.write_clk
+@22
+async_fifo.write_data[31:0]
+@28
+async_fifo.write_en
+async_fifo.write_ptr[2:0]
+async_fifo.write_ptr_gray[2:0]
+async_fifo.write_ptr_gray_nxt[2:0]
+async_fifo.write_ptr_nxt[2:0]
+async_fifo.write_ptr_sync[2:0]
+async_fifo.write_ptr_synchronizer.clk
+async_fifo.write_ptr_synchronizer.data_i[2:0]
+async_fifo.write_ptr_synchronizer.data_o[2:0]
+async_fifo.write_ptr_synchronizer.reset
+async_fifo.write_ptr_synchronizer.sync0[2:0]
+async_fifo.write_ptr_synchronizer.sync1[2:0]
+async_fifo.write_reset
+async_fifo.write_reset_synchronizer.clk
+async_fifo.write_reset_synchronizer.data_i
+async_fifo.write_reset_synchronizer.data_o
+async_fifo.write_reset_synchronizer.reset
+async_fifo.write_reset_synchronizer.sync0
+async_fifo.write_reset_synchronizer.sync1
+[pattern_trace] 1
+[pattern_trace] 0
