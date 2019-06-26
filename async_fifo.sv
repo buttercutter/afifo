@@ -368,6 +368,7 @@ module async_fifo
 	initial first_data_is_written = 0;
 	initial second_data_is_written = 0;
 	
+	//always @(*) assume(write_reset == read_reset);
 	always @(*) assume(first_data != 0);
 	always @(*) assume(second_data != 0);
 	always @(*) assume(first_data != second_data);
@@ -404,6 +405,7 @@ module async_fifo
 		if(reset_rsync)
 		begin  
 			first_data_read_out <= 0;
+			second_data_read_out <= 0;
 			first_data_is_read <= 0;
 			second_data_is_read <= 0;
 		end
@@ -421,11 +423,31 @@ module async_fifo
 		end
 	end
 
-	always_ff @($global_clock)
+	reg past_reset_rsync; 
+	always @(posedge read_clk) past_reset_rsync <= reset_rsync; // to emulate $past(reset_rsync)
+
+	always @(*)
 	begin
-		if(first_data_is_read) cover(first_data == first_data_read_out);
-		
-		if(second_data_is_read) cover(second_data == second_data_read_out);
+		if(first_read_clock_had_passed && past_reset_rsync)
+		begin  
+			assert(first_data_read_out == 0);
+			assert(second_data_read_out == 0);
+		end
+
+		else begin
+
+			if(first_data_is_read) 
+			begin
+				cover(first_data_read_out == first_data);
+				assert(first_data_read_out == first_data);
+			end
+			
+			if(second_data_is_read)
+			begin
+				cover(second_data_read_out == second_data);
+				assert(second_data_read_out == second_data);
+			end
+		end
 	end
 
 `endif
