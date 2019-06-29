@@ -381,13 +381,13 @@ module async_fifo
 			second_data_is_written <= 0;
 		end
 	
-		else if(write_en && !first_data_is_written)
+		else if(write_en && !$past(first_data_is_written))
 		begin
 			assume(write_data == first_data);
 			first_data_is_written <= 1;	
 		end
 		
-		else if(write_en && !second_data_is_written)
+		else if(write_en && first_data_is_written && !$past(second_data_is_written))
 		begin
 			assume(write_data == second_data);
 			second_data_is_written <= 1;	
