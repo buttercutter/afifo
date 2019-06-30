@@ -373,7 +373,7 @@ module async_fifo
 	always @(*) assume(second_data != 0);
 	always @(*) assume(first_data != second_data);
 	
-	always_ff @(posedge write_clk)
+	always_ff @(posedge write_clk, posedge reset_wsync)
 	begin
 		if(reset_wsync)
 		begin
@@ -400,7 +400,7 @@ module async_fifo
 	initial first_data_read_out = 0;
 	initial second_data_read_out = 0;
 
-	always_ff @(posedge read_clk)
+	always_ff @(posedge read_clk, posedge reset_rsync)
 	begin
 		if(reset_rsync)
 		begin  

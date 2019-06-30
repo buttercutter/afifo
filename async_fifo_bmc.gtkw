@@ -1,15 +1,13 @@
 [*]
 [*] GTKWave Analyzer v3.3.94 (w)1999-2018 BSI
-[*] Sat Jun 29 03:06:05 2019
+[*] Sun Jun 30 11:21:34 2019
 [*]
-[dumpfile] "/home/phung/Downloads/afifo/async_fifo_proof/engine_0/trace.vcd"
-[dumpfile_mtime] "Sat Jun 29 02:42:53 2019"
-[dumpfile_size] 13336
+[dumpfile] "(null)"
 [savefile] "/home/phung/Downloads/afifo/async_fifo_bmc.gtkw"
 [timestart] 0
 [size] 960 995
-[pos] 960 0
-*-5.185866 80 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] -51 -1
+*-5.185866 30 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [sst_width] 51
 [signals_width] 354
 [sst_expanded] 0
@@ -36,13 +34,6 @@ async_fifo.f_rclk_step[4:0]
 async_fifo.f_wclk_count[4:0]
 async_fifo.f_wclk_step[4:0]
 async_fifo.fifo_data<0>[31:0]
-async_fifo.fifo_data<1>[31:0]
-async_fifo.fifo_data<2>[31:0]
-async_fifo.fifo_data<3>[31:0]
-async_fifo.fifo_data<4>[31:0]
-async_fifo.fifo_data<5>[31:0]
-async_fifo.fifo_data<6>[31:0]
-async_fifo.fifo_data<7>[31:0]
 @28
 async_fifo.first_clock_had_passed
 @22
