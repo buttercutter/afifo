@@ -426,9 +426,9 @@ module async_fifo
 	reg past_reset_rsync; 
 	always @(posedge read_clk) past_reset_rsync <= reset_rsync; // to emulate $past(reset_rsync)
 
-	always @(*)
+	always @(posedge read_clk)
 	begin
-		if(first_read_clock_had_passed && past_reset_rsync)
+		if(first_read_clock_had_passed && past_reset_rsync && !$past(past_reset_rsync)) // posedge reset_rsync
 		begin  
 			assert(first_data_read_out == 0);
 			assert(second_data_read_out == 0);
