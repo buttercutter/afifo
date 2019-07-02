@@ -372,7 +372,11 @@ module async_fifo
 	always @(*) assume(first_data != 0);
 	always @(*) assume(second_data != 0);
 	always @(*) assume(first_data != second_data);
+
 	
+	// If (asynchronous reset & write_en) are true on the same clock, and then reset is low on the next clock, 
+	// then the asynchronous reset gets ignored and the write_en applied
+
 	always_ff @(posedge write_clk, posedge reset_wsync)
 	begin
 		if(reset_wsync)
