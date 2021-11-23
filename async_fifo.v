@@ -37,29 +37,29 @@ module async_fifo
     input                   read_clk,
     input                   read_en,
     output [WIDTH - 1:0]    read_data,
-    output logic            empty,
+    output 		            empty,
 
     // Write
     input                   write_clk,
     input                   write_en,
-    output logic            full,
+    output		            full,
     input [WIDTH - 1:0]     write_data);
 
     localparam ADDR_WIDTH = $clog2(NUM_ENTRIES);
 
-    logic[ADDR_WIDTH - 1:0] write_ptr_sync;
-    logic[ADDR_WIDTH - 1:0] read_ptr;
-    logic[ADDR_WIDTH - 1:0] read_ptr_gray;
-    logic[ADDR_WIDTH - 1:0] read_ptr_nxt;
-    logic[ADDR_WIDTH - 1:0] read_ptr_gray_nxt;
-    logic reset_rsync;
-    logic[ADDR_WIDTH - 1:0] read_ptr_sync;
-    logic[ADDR_WIDTH - 1:0] write_ptr;
-    logic[ADDR_WIDTH - 1:0] write_ptr_gray;
-    logic[ADDR_WIDTH - 1:0] write_ptr_nxt;
-    logic[ADDR_WIDTH - 1:0] write_ptr_gray_nxt;
-    logic reset_wsync;
-    logic [WIDTH - 1:0] fifo_data[0:NUM_ENTRIES - 1];
+    wire [ADDR_WIDTH - 1:0] write_ptr_sync;
+    reg [ADDR_WIDTH - 1:0] read_ptr;
+    reg [ADDR_WIDTH - 1:0] read_ptr_gray;
+    wire [ADDR_WIDTH - 1:0] read_ptr_nxt;
+    wire [ADDR_WIDTH - 1:0] read_ptr_gray_nxt;
+    wire reset_rsync;
+    wire [ADDR_WIDTH - 1:0] read_ptr_sync;
+    reg [ADDR_WIDTH - 1:0] write_ptr;
+    reg [ADDR_WIDTH - 1:0] write_ptr_gray;
+    wire [ADDR_WIDTH - 1:0] write_ptr_nxt;
+    wire [ADDR_WIDTH - 1:0] write_ptr_gray_nxt;
+    wire reset_wsync;
+    reg [WIDTH - 1:0] fifo_data[0:NUM_ENTRIES - 1];
 
     assign read_ptr_nxt = read_ptr + 1;
     assign read_ptr_gray_nxt = read_ptr_nxt ^ (read_ptr_nxt >> 1);
@@ -87,7 +87,7 @@ module async_fifo
         .data_i(0),
         .data_o(reset_rsync));
 
-    always_ff @(posedge read_clk, posedge reset_rsync)
+    always @(posedge read_clk, posedge reset_rsync)
     begin
         if (reset_rsync)
         begin
@@ -125,7 +125,7 @@ module async_fifo
 
 	integer i;
 
-    always_ff @(posedge write_clk, posedge reset_wsync)
+    always @(posedge write_clk, posedge reset_wsync)
     begin
         if (reset_wsync)
         begin
@@ -162,13 +162,13 @@ module async_fifo
 	initial first_write_clock_had_passed = 0;
 	initial first_read_clock_had_passed = 0;
 
-	always_ff @($global_clock)
+	always @($global_clock)
 		first_clock_had_passed <= 1;	
 
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 		first_write_clock_had_passed <= 1;
 
-	always_ff @(posedge read_clk)
+	always @(posedge read_clk)
 		first_read_clock_had_passed <= 1;
 
 	//always @($global_clock)
@@ -179,7 +179,7 @@ module async_fifo
 	initial assert(empty);
 	initial assert(!full);
 	
-	always_ff @($global_clock)
+	always @($global_clock)
 	begin
 		if(reset_wsync)
 		begin
@@ -194,7 +194,7 @@ module async_fifo
 		end
 	end
 
-	always_ff @($global_clock)
+	always @($global_clock)
 	begin
 		if(reset_rsync)
 		begin
@@ -209,7 +209,7 @@ module async_fifo
 		end
 	end
 
-	always_ff @($global_clock)
+	always @($global_clock)
 	begin
 		if (first_clock_had_passed)
 		begin
@@ -308,14 +308,14 @@ module async_fifo
 	//
 
 	// Make sure a reset is possible in either domain
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 		cover(write_reset);
 
-	always_ff @(posedge read_clk)
+	always @(posedge read_clk)
 		cover(read_reset);
 
 
-	always_ff @($global_clock)
+	always @($global_clock)
 	if (first_clock_had_passed)
 		cover((empty)&&(!$past(empty)));
 
@@ -323,24 +323,24 @@ module async_fifo
 	if (first_clock_had_passed)
 		cover(full);
 
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 	if (first_write_clock_had_passed)
 		cover($past(full)&&($past(write_en))&&(full));
 
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 	if (first_write_clock_had_passed)
 		cover($past(full)&&(!full));
 
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 		cover((full)&&(write_en));
 
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 		cover(write_en);
 
-	always_ff @(posedge read_clk)
+	always @(posedge read_clk)
 		cover((empty)&&(read_en));
 
-	always_ff @(posedge read_clk)
+	always @(posedge read_clk)
 	if (first_read_clock_had_passed)
 		cover($past(!empty)&&($past(read_en))&&(empty));
 		
@@ -372,7 +372,7 @@ module async_fifo
 	always @(*) assume(second_data != 0);
 	always @(*) assume(first_data != second_data);
 	
-	always_ff @(posedge write_clk)
+	always @(posedge write_clk)
 	begin
 		if(reset_wsync)
 		begin
@@ -399,7 +399,7 @@ module async_fifo
 	initial first_data_read_out = 0;
 	initial second_data_read_out = 0;
 
-	always_ff @(posedge read_clk)
+	always @(posedge read_clk)
 	begin
 		if(reset_rsync)
 		begin  
@@ -421,7 +421,7 @@ module async_fifo
 		end
 	end
 
-	always_ff @($global_clock)
+	always @($global_clock)
 	begin
 		if(first_data_is_read) cover(first_data == first_data_read_out);
 		

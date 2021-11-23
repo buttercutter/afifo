@@ -19,13 +19,13 @@ smtbmc yices
 # aiger suprove
 
 [script]
-read_verilog -formal -sv async_fifo.sv
-read_verilog -formal -sv synchronizer.sv
-read_verilog -formal -sv clock_gate.v
+read_verilog -formal async_fifo.v
+read_verilog -formal synchronizer.v
+read_verilog -formal clock_gate.v
 
 prep -top async_fifo
 
 [files]
-async_fifo.sv
-synchronizer.sv
+async_fifo.v
+synchronizer.v
 clock_gate.v
