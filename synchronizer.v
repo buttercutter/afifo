@@ -32,13 +32,13 @@ module synchronizer
     reg [WIDTH - 1:0] sync0;
     reg [WIDTH - 1:0] sync1;
 
-    always @(posedge clk, posedge reset)
+    always @(posedge clk)
     begin
         if (reset)
         begin
-            sync0 <= {WIDTH{RESET_STATE}};
-            sync1 <= {WIDTH{RESET_STATE}};
-            data_o <= {WIDTH{RESET_STATE}};
+            sync0 <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
+            sync1 <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
+            data_o <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
         end
         else
         begin
