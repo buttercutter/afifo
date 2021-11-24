@@ -382,13 +382,6 @@ module async_fifo
 		end
 	end
 
-	always @(posedge write_clk)
-	begin
-		if(first_data_is_written) assert($past(first_data) == fifo_data[first_address]);
-		
-		if(second_data_is_written) assert($past(second_data) == fifo_data[second_address]);
-	end
-
 	always @($global_clock)
 	begin
 		if(first_clock_had_passed && ($rose(write_clk)))
@@ -403,12 +396,14 @@ module async_fifo
 			begin
 				assert(first_data_is_written == 1);	
 				assert(first_address == $past(write_ptr));
+				assert($past(first_data) == fifo_data[first_address]);
 			end
 			
 			else if($past(write_en) && !$past(full) && !$past(second_data_is_written))
 			begin
 				assert(second_data_is_written == 1);
 				assert(second_address == $past(write_ptr));	
+				assert($past(second_data) == fifo_data[second_address]);
 			end
 		end
 	end
