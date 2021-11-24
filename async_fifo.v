@@ -27,8 +27,15 @@
 `default_nettype none
 
 module async_fifo
-    #(parameter WIDTH = 32,
-    parameter NUM_ENTRIES = 8)
+    #(
+    	`ifdef FORMAL
+			parameter WIDTH = 4,
+			parameter NUM_ENTRIES = 4
+		`else
+			parameter WIDTH = 32,
+			parameter NUM_ENTRIES = 8		
+		`endif
+    )
 
     (input                  write_reset,
      input					read_reset,
@@ -87,7 +94,7 @@ module async_fifo
         .data_i(0),
         .data_o(reset_rsync));
 
-    always @(posedge read_clk, posedge reset_rsync)
+    always @(posedge read_clk)
     begin
         if (reset_rsync)
         begin
@@ -125,7 +132,7 @@ module async_fifo
 
 	integer i;
 
-    always @(posedge write_clk, posedge reset_wsync)
+    always @(posedge write_clk)
     begin
         if (reset_wsync)
         begin
@@ -176,45 +183,17 @@ module async_fifo
 
 	initial assume(write_reset);
 	initial assume(read_reset);
-	initial assert(empty);
-	initial assert(!full);
-	
-	always @($global_clock)
-	begin
-		if(reset_wsync)
-		begin
-			assert(write_ptr == 0);
-			assert(write_ptr_gray == 0);
-			assert(!full);
-		end
-
-		else if(first_write_clock_had_passed) 
-		begin
-
-		end
-	end
-
-	always @($global_clock)
-	begin
-		if(reset_rsync)
-		begin
-			assert(read_ptr == 0);
-			assert(read_ptr_gray == 0);
-			assert(empty);
-		end
-
-		else if(first_read_clock_had_passed) 
-		begin
-
-		end
-	end
+	//initial assert(empty);
+	//initial assert(!full);
 
 	always @($global_clock)
 	begin
 		if (first_clock_had_passed)
 		begin
-			if(reset_wsync)
+			if($past(reset_wsync) && ($rose(write_clk)))
 			begin
+				assert(write_ptr == 0);
+				assert(write_ptr_gray == 0);
 				assert(!full);		
 				assert(read_data == 0);
 			end
@@ -223,16 +202,21 @@ module async_fifo
 			begin
 				assume($stable(write_en));
 				assume($stable(write_data));
-				assert($stable(full));
+				assert(full == (write_ptr_gray_nxt == read_ptr_sync));
 			end		
 			
-			if(reset_rsync)
-				assert(empty);		
+			if($past(reset_rsync) && ($rose(read_clk)))
+			begin
+				assert(read_ptr == 0);
+				assert(read_ptr_gray == 0);
+				assert(empty);
+			end	
 
 			else if (!$rose(read_clk))
 			begin
 				assume($stable(read_en));
-				assert($stable(empty));
+				assert(empty == (write_ptr_sync == read_ptr_gray));
+				
 				if(!reset_wsync && !$rose(write_clk) && !write_en) assert($stable(read_data));				
 			end						
 		end
@@ -371,6 +355,9 @@ module async_fifo
 	always @(*) assume(first_data != 0);
 	always @(*) assume(second_data != 0);
 	always @(*) assume(first_data != second_data);
+
+	reg [ADDR_WIDTH-1 :0] first_address;
+	reg [ADDR_WIDTH-1 :0] second_address;
 	
 	always @(posedge write_clk)
 	begin
@@ -380,24 +367,58 @@ module async_fifo
 			second_data_is_written <= 0;
 		end
 	
-		else if(write_en && !first_data_is_written)
+		else if(write_en && !full && !first_data_is_written)
 		begin
 			assume(write_data == first_data);
 			first_data_is_written <= 1;	
+			first_address <= write_ptr;
 		end
 		
-		else if(write_en && !second_data_is_written)
+		else if(write_en && !full && !second_data_is_written)
 		begin
 			assume(write_data == second_data);
-			second_data_is_written <= 1;	
+			second_data_is_written <= 1;
+			second_address <= write_ptr;	
 		end
 	end
+
+	always @(posedge write_clk)
+	begin
+		if(first_data_is_written) assert($past(first_data) == fifo_data[first_address]);
+		
+		if(second_data_is_written) assert($past(second_data) == fifo_data[second_address]);
+	end
+
+	always @($global_clock)
+	begin
+		if(first_clock_had_passed && ($rose(write_clk)))
+		begin
+			if($past(reset_wsync))
+			begin
+				assert(first_data_is_written == 0);
+				assert(second_data_is_written == 0);
+			end
+		
+			else if($past(write_en) && !$past(full) && !$past(first_data_is_written))
+			begin
+				assert(first_data_is_written == 1);	
+				assert(first_address == $past(write_ptr));
+			end
+			
+			else if($past(write_en) && !$past(full) && !$past(second_data_is_written))
+			begin
+				assert(second_data_is_written == 1);
+				assert(second_address == $past(write_ptr));	
+			end
+		end
+	end
+	
 
 	reg [WIDTH - 1:0] first_data_read_out;
 	reg [WIDTH - 1:0] second_data_read_out;
 	
-	initial first_data_read_out = 0;
-	initial second_data_read_out = 0;
+	initial first_data_is_read = 0;
+	initial second_data_is_read = 0;
 
 	always @(posedge read_clk)
 	begin
@@ -408,13 +429,13 @@ module async_fifo
 			second_data_is_read <= 0;
 		end
 	
-		else if(read_en && first_data_is_written && !first_data_is_read)
+		else if(read_en && !empty && first_data_is_written && !first_data_is_read)
 		begin
 			first_data_read_out <= read_data;
 			first_data_is_read <= 1;	
 		end
 		
-		else if(read_en && second_data_is_written && !second_data_is_read)
+		else if(read_en && !empty && second_data_is_written && !second_data_is_read)
 		begin
 			second_data_read_out <= read_data;
 			second_data_is_read <= 1;	
@@ -423,9 +444,26 @@ module async_fifo
 
 	always @($global_clock)
 	begin
-		if(first_data_is_read) cover(first_data == first_data_read_out);
+		if(first_clock_had_passed && ($rose(read_clk)))
+		begin
+			if($past(reset_rsync))
+			begin
+				assert(first_data_is_read == 0);
+				assert(second_data_is_read == 0);
+			end
 		
-		if(second_data_is_read) cover(second_data == second_data_read_out);
+			else if($past(read_en) && !$past(empty) && $past(first_data_is_written) && !$past(first_data_is_read))
+			begin
+				assert(first_data_read_out == $past(read_data));				
+				assert(first_data_is_read == 1);	
+			end
+			
+			else if($past(read_en) && !$past(empty) && $past(second_data_is_written) && !$past(second_data_is_read))
+			begin
+				assert(second_data_read_out == $past(read_data));
+				assert(second_data_is_read == 1);
+			end
+		end
 	end
 
 `endif
