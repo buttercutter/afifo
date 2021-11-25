@@ -47,4 +47,10 @@ module synchronizer
             data_o <= sync1;
         end
     end
+    
+    `ifdef FORMAL
+    	initial data_o = 0;
+    	initial sync0 = 0;
+    	initial sync1 = 0;
+    `endif
 endmodule

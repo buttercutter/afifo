@@ -30,11 +30,11 @@ module async_fifo
     #(
     	`ifdef FORMAL
 			parameter WIDTH = 4,
-			parameter NUM_ENTRIES = 4
 		`else
-			parameter WIDTH = 32,
-			parameter NUM_ENTRIES = 8		
+			parameter WIDTH = 32,		
 		`endif
+		
+		parameter NUM_ENTRIES = 8
     )
 
     (input                  write_reset,
@@ -98,12 +98,10 @@ module async_fifo
     begin
         if (reset_rsync)
         begin
-            /*AUTORESET*/
-            // Beginning of autoreset for uninitialized flops
             read_ptr <= 0;
             read_ptr_gray <= 0;
-            // End of automatics
         end
+        
         else if (read_en && !empty)
         begin
             read_ptr <= read_ptr_nxt;
@@ -136,19 +134,17 @@ module async_fifo
     begin
         if (reset_wsync)
         begin
-            //`ifdef NEVER
-            for (i=0; i<NUM_ENTRIES; i++)
-			begin
-				fifo_data[i] <= {WIDTH{1'b0}}; // Suppress autoreset
-			end    
-            //`endif
+            `ifdef FORMAL
+		        for (i=0; i<NUM_ENTRIES; i++)
+				begin
+					fifo_data[i] <= {WIDTH{1'b0}};
+				end    
+            `endif
 
-            /*AUTORESET*/
-            // Beginning of autoreset for uninitialized flops
             write_ptr <= 0;
             write_ptr_gray <= 0;
-            // End of automatics
         end
+        
         else if (write_en && !full)
         begin
             fifo_data[write_ptr] <= write_data;
@@ -183,9 +179,31 @@ module async_fifo
 
 	initial assume(write_reset);
 	initial assume(read_reset);
-	//initial assert(empty);
-	//initial assert(!full);
+	initial assume(empty);
+	initial assume(!full);
 
+	reg reset_rsync_is_done;
+	initial reset_rsync_is_done = 0;
+	initial assert(reset_rsync == 0);	
+
+    always @(posedge read_clk)
+    begin
+    	if (read_reset) reset_rsync_is_done <= 0;
+    
+        else if (reset_rsync) reset_rsync_is_done <= 1;
+    end
+
+	reg reset_wsync_is_done;
+	initial reset_wsync_is_done = 0;	
+	initial assert(reset_wsync == 0);	
+
+    always @(posedge write_clk)
+    begin
+    	if (write_reset) reset_wsync_is_done <= 0;
+    
+        else if (reset_wsync) reset_wsync_is_done <= 1;
+    end
+    
 	always @($global_clock)
 	begin
 		if (first_clock_had_passed)
@@ -281,54 +299,6 @@ module async_fifo
 
 `endif
 
-`ifdef FORMAL
-
-	////////////////////////////////////////////////////
-	//
-	// Some cover statements, to make sure valuable states
-	// are even reachable
-	//
-	////////////////////////////////////////////////////
-	//
-
-	// Make sure a reset is possible in either domain
-	always @(posedge write_clk)
-		cover(write_reset);
-
-	always @(posedge read_clk)
-		cover(read_reset);
-
-
-	always @($global_clock)
-	if (first_clock_had_passed)
-		cover((empty)&&(!$past(empty)));
-
-	always @(*)
-	if (first_clock_had_passed)
-		cover(full);
-
-	always @(posedge write_clk)
-	if (first_write_clock_had_passed)
-		cover($past(full)&&($past(write_en))&&(full));
-
-	always @(posedge write_clk)
-	if (first_write_clock_had_passed)
-		cover($past(full)&&(!full));
-
-	always @(posedge write_clk)
-		cover((full)&&(write_en));
-
-	always @(posedge write_clk)
-		cover(write_en);
-
-	always @(posedge read_clk)
-		cover((empty)&&(read_en));
-
-	always @(posedge read_clk)
-	if (first_read_clock_had_passed)
-		cover($past(!empty)&&($past(read_en))&&(empty));
-		
-`endif
 	
 `ifdef FORMAL
 	
@@ -358,6 +328,8 @@ module async_fifo
 
 	reg [ADDR_WIDTH-1 :0] first_address;
 	reg [ADDR_WIDTH-1 :0] second_address;
+	
+	always @(posedge write_clk) assume(first_address != second_address);
 	
 	always @(posedge write_clk)
 	begin
@@ -424,7 +396,7 @@ module async_fifo
 			second_data_is_read <= 0;
 		end
 	
-		else if(read_en && !empty && first_data_is_written && !first_data_is_read)
+		else if(read_en && !empty && first_data_is_written && !first_data_is_read && !second_data_is_read)
 		begin
 			first_data_read_out <= read_data;
 			first_data_is_read <= 1;	
@@ -447,7 +419,7 @@ module async_fifo
 				assert(second_data_is_read == 0);
 			end
 		
-			else if($past(read_en) && !$past(empty) && $past(first_data_is_written) && !$past(first_data_is_read))
+			else if($past(read_en) && !$past(empty) && $past(first_data_is_written) && !$past(first_data_is_read) && !$past(second_data_is_read))
 			begin
 				assert(first_data_read_out == $past(read_data));				
 				assert(first_data_is_read == 1);	
@@ -461,6 +433,170 @@ module async_fifo
 		end
 	end
 
+`endif
+
+`ifdef FORMAL
+	// mechanism needed for 'full' and 'empty' coverage check
+	
+	// writes to FIFO for many clock cycles, then
+	// read from FIFO for many clock cycles
+	
+	// As for why this is needed at all, see https://math.stackexchange.com/a/4314823/625099 and
+	// https://www.reddit.com/r/askmath/comments/r0hp2o/simple_gray_code_question/
+	
+	// for this particular test, we need NUM_ENTRIES to be power of 2 
+	// since address rollover (MSB flipping) mechanism is used to check whether 
+	// every FIFO entries had been visited at least twice
+	localparam CYCLES_FOR_FULL_EMPTY_CHECK = NUM_ENTRIES; 
+	
+	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] write_counter_loop_around_fifo;
+	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] read_counter_loop_around_fifo;	
+	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] previous_write_counter_loop_around_fifo;
+	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] previous_read_counter_loop_around_fifo;	
+		
+	initial write_counter_loop_around_fifo = 0;
+	initial read_counter_loop_around_fifo = 0;
+	initial previous_write_counter_loop_around_fifo = 0;
+	initial previous_read_counter_loop_around_fifo = 0;
+	
+	always @(posedge write_clk)
+	begin
+		if(test_write_en)
+			write_counter_loop_around_fifo <= write_counter_loop_around_fifo + 1;
+			
+		else write_counter_loop_around_fifo <= 0;
+			
+		previous_write_counter_loop_around_fifo <= write_counter_loop_around_fifo;
+	end
+
+	always @(posedge read_clk)
+	begin
+		if(test_read_en)
+			read_counter_loop_around_fifo <= read_counter_loop_around_fifo + 1;
+			
+		else read_counter_loop_around_fifo <= 0;
+		
+		previous_read_counter_loop_around_fifo <= read_counter_loop_around_fifo;
+	end
+
+	
+	// initially no testing
+	reg test_write_en, previous_test_write_en;
+	reg test_read_en;	
+	initial test_write_en = 0;
+	initial test_read_en = 0;
+	initial previous_test_write_en = 0;	
+	
+	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] test_write_data;
+	
+	wire finished_loop_writing =  // every FIFO entries had been visited at least twice
+			(write_counter_loop_around_fifo == 0) && (&previous_write_counter_loop_around_fifo);
+	
+	always @(posedge write_clk)
+	begin
+		if(reset_wsync || finished_loop_writing)
+		begin
+			test_write_en <= 0;
+		end
+		
+		else begin
+			if(second_data_is_read) test_write_en <= 1;  // starts after twin-write test
+			test_write_data <= test_write_data + 1;  // for easy tracking on write test progress
+		end
+	end
+
+	reg had_finished_loop_writing;
+	initial had_finished_loop_writing = 0;
+
+	always @(posedge write_clk) 
+	begin
+		previous_test_write_en <= test_write_en;
+		had_finished_loop_writing <= finished_loop_writing;
+	end
+
+	wire finished_loop_reading =  // every FIFO entries had been visited at least twice
+			(read_counter_loop_around_fifo == 0) && (&previous_read_counter_loop_around_fifo);
+
+	always @(posedge read_clk)
+	begin
+		if(reset_rsync || finished_loop_reading)
+		begin
+			test_read_en <= 0;
+		end
+		
+		else begin
+			test_read_en <= ((second_data_is_read) &&  // starts after twin-write test
+							 (had_finished_loop_writing));  // finished write testing;	
+		end
+	end
+
+	always @(posedge write_clk)
+	begin
+		if(test_write_en) 
+		begin
+			assume(write_en);
+			assume(write_data == test_write_data);
+		end
+	end
+
+	always @(posedge read_clk)
+	begin
+		if(test_read_en) assume(read_en);
+	end
+		
+`endif
+
+
+`ifdef FORMAL
+
+	////////////////////////////////////////////////////
+	//
+	// Some cover statements, to make sure valuable states
+	// are even reachable
+	//
+	////////////////////////////////////////////////////
+	//
+
+	// Make sure a reset is possible in either domain
+	always @(posedge write_clk)
+		cover(first_write_clock_had_passed && write_reset);
+
+	always @(posedge read_clk)
+		cover(first_read_clock_had_passed && read_reset);
+
+
+	always @($global_clock)
+	if (first_clock_had_passed && reset_rsync_is_done)
+		cover((empty)&&(!$past(empty)));
+
+	always @(*)
+	if (first_clock_had_passed && reset_wsync_is_done)
+		cover(full);
+
+	always @(posedge write_clk)
+	if (first_write_clock_had_passed && reset_wsync_is_done)
+		cover((write_en)&&(full));
+
+	always @(posedge write_clk)
+	if (first_write_clock_had_passed && reset_wsync_is_done)
+		cover($past(full)&&(!full));
+
+	always @(posedge write_clk)
+		cover((full)&&(write_en));
+
+	always @(posedge write_clk)
+		cover(write_en);
+
+	always @(posedge read_clk)
+		cover((empty)&&(read_en));
+
+	always @(posedge read_clk)
+	if (first_read_clock_had_passed && reset_rsync_is_done)
+		cover($past(!empty)&&($past(read_en))&&(empty));
+		
+	always @(posedge read_clk)
+		cover(first_read_clock_had_passed && (finished_loop_reading));
+		
 `endif
 
 endmodule
