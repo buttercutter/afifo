@@ -57,17 +57,17 @@ module async_fifo
 
     localparam ADDR_WIDTH = $clog2(NUM_ENTRIES);
 
-    wire [ADDR_WIDTH - 1:0] write_ptr_sync;
-    reg [ADDR_WIDTH - 1:0] read_ptr;
-    reg [ADDR_WIDTH - 1:0] read_ptr_gray;
-    wire [ADDR_WIDTH - 1:0] read_ptr_nxt;
-    wire [ADDR_WIDTH - 1:0] read_ptr_gray_nxt;
+    wire [ADDR_WIDTH:0] write_ptr_sync;
+    reg  [ADDR_WIDTH:0] read_ptr;
+    reg  [ADDR_WIDTH:0] read_ptr_gray;
+    wire [ADDR_WIDTH:0] read_ptr_nxt;
+    wire [ADDR_WIDTH:0] read_ptr_gray_nxt;
     wire reset_rsync;
-    wire [ADDR_WIDTH - 1:0] read_ptr_sync;
-    reg [ADDR_WIDTH - 1:0] write_ptr;
-    reg [ADDR_WIDTH - 1:0] write_ptr_gray;
-    wire [ADDR_WIDTH - 1:0] write_ptr_nxt;
-    wire [ADDR_WIDTH - 1:0] write_ptr_gray_nxt;
+    wire [ADDR_WIDTH:0] read_ptr_sync;
+    reg  [ADDR_WIDTH:0] write_ptr;
+    reg  [ADDR_WIDTH:0] write_ptr_gray;
+    wire [ADDR_WIDTH:0] write_ptr_nxt;
+    wire [ADDR_WIDTH:0] write_ptr_gray_nxt;
     wire reset_wsync;
     reg [WIDTH - 1:0] fifo_data[0:NUM_ENTRIES - 1];
 
@@ -79,7 +79,7 @@ module async_fifo
     //
     // Read clock domain
     //
-    synchronizer #(.WIDTH(ADDR_WIDTH)) write_ptr_synchronizer(
+    synchronizer #(.WIDTH(ADDR_WIDTH+1)) write_ptr_synchronizer(
         .clk(read_clk),
         .reset(reset_rsync),
         .data_o(write_ptr_sync),
@@ -117,13 +117,21 @@ module async_fifo
     //
     // Write clock domain
     //
-    synchronizer #(.WIDTH(ADDR_WIDTH)) read_ptr_synchronizer(
+    synchronizer #(.WIDTH(ADDR_WIDTH+1)) read_ptr_synchronizer(
         .clk(write_clk),
         .reset(reset_wsync),
         .data_o(read_ptr_sync),
         .data_i(read_ptr_gray));
 
-    assign full = write_ptr_gray_nxt == read_ptr_sync;
+	reg [ADDR_WIDTH:0] full_check;
+    always @(posedge write_clk) 
+    begin
+    	if(full) full_check <= write_ptr_gray ^ read_ptr_sync;
+    	
+    	else full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
+    end
+    	
+    assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && (full_check[0 +: (ADDR_WIDTH-1)] == 0);
 
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
         .clk(write_clk),
@@ -215,7 +223,6 @@ module async_fifo
 			begin
 				assert(write_ptr == 0);
 				assert(write_ptr_gray == 0);
-				assert(!full);		
 				assert(read_data == 0);
 			end
 
@@ -224,7 +231,6 @@ module async_fifo
 				assume($stable(write_reset));
 				assume($stable(write_en));
 				assume($stable(write_data));
-				assert(full == (write_ptr_gray_nxt == read_ptr_sync));
 			end		
 			
 			if($past(reset_rsync) && ($rose(read_clk)))
@@ -327,12 +333,12 @@ module async_fifo
 	initial first_data_is_written = 0;
 	initial second_data_is_written = 0;
 	
-	always @(*) assume(first_data != 0);
-	always @(*) assume(second_data != 0);
+	always @(*) assume(first_data > NUM_ENTRIES);
+	always @(*) assume(second_data > NUM_ENTRIES);
 	always @(*) assume(first_data != second_data);
 
-	reg [ADDR_WIDTH-1 :0] first_address;
-	reg [ADDR_WIDTH-1 :0] second_address;
+	reg [ADDR_WIDTH:0] first_address;
+	reg [ADDR_WIDTH:0] second_address;
 	
 	always @(posedge write_clk) assume(first_address != second_address);
 	
