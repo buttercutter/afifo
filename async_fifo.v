@@ -27,7 +27,7 @@
 `default_nettype none
 
 // for writing and reading 2 different values into 2 different FIFO entry locations
-//`define ENABLE_TWIN_WRITE_TEST 1
+`define ENABLE_TWIN_WRITE_TEST 1
 
 module async_fifo
     #(
@@ -130,7 +130,8 @@ module async_fifo
     	
     	else full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
     end
-    	
+
+	// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
     assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && (full_check[0 +: (ADDR_WIDTH-1)] == 0);
 
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
