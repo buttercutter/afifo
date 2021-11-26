@@ -26,6 +26,9 @@
 
 `default_nettype none
 
+// for writing and reading 2 different values into 2 different FIFO entry locations
+//`define ENABLE_TWIN_WRITE_TEST 1
+
 module async_fifo
     #(
     	`ifdef FORMAL
@@ -91,7 +94,7 @@ module async_fifo
     synchronizer #(.RESET_STATE(1)) read_reset_synchronizer(
         .clk(read_clk),
         .reset(read_reset),
-        .data_i(0),
+        .data_i(1'b0),
         .data_o(reset_rsync));
 
     always @(posedge read_clk)
@@ -125,7 +128,7 @@ module async_fifo
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
         .clk(write_clk),
         .reset(write_reset),
-        .data_i(0),
+        .data_i(1'b0),
         .data_o(reset_wsync));
 
 	integer i;
@@ -218,6 +221,7 @@ module async_fifo
 
 			else if (!$rose(write_clk))
 			begin
+				assume($stable(write_reset));
 				assume($stable(write_en));
 				assume($stable(write_data));
 				assert(full == (write_ptr_gray_nxt == read_ptr_sync));
@@ -232,6 +236,7 @@ module async_fifo
 
 			else if (!$rose(read_clk))
 			begin
+				assume($stable(read_reset));
 				assume($stable(read_en));
 				assert(empty == (write_ptr_sync == read_ptr_gray));
 				
@@ -392,21 +397,33 @@ module async_fifo
 		if(reset_rsync)
 		begin  
 			first_data_read_out <= 0;
+			second_data_read_out <= 0;
 			first_data_is_read <= 0;
 			second_data_is_read <= 0;
 		end
-	
-		else if(read_en && !empty && first_data_is_written && !first_data_is_read && !second_data_is_read)
-		begin
-			first_data_read_out <= read_data;
-			first_data_is_read <= 1;	
-		end
+
+		`ifdef ENABLE_TWIN_WRITE_TEST	
 		
-		else if(read_en && !empty && second_data_is_written && !second_data_is_read)
-		begin
-			second_data_read_out <= read_data;
-			second_data_is_read <= 1;	
-		end
+			else if(read_en && !empty && first_data_is_written && !first_data_is_read && !second_data_is_read)
+			begin
+				first_data_read_out <= read_data;
+				first_data_is_read <= 1;	
+			end
+			
+			else if(read_en && !empty && second_data_is_written && !second_data_is_read)
+			begin
+				second_data_read_out <= read_data;
+				second_data_is_read <= 1;	
+			end
+			
+		`else
+			else begin
+				first_data_read_out <= read_data;
+				second_data_read_out <= read_data;
+				first_data_is_read <= 1;
+				second_data_is_read <= 1;
+			end
+		`endif
 	end
 
 	always @($global_clock)
@@ -418,18 +435,29 @@ module async_fifo
 				assert(first_data_is_read == 0);
 				assert(second_data_is_read == 0);
 			end
-		
-			else if($past(read_en) && !$past(empty) && $past(first_data_is_written) && !$past(first_data_is_read) && !$past(second_data_is_read))
-			begin
-				assert(first_data_read_out == $past(read_data));				
-				assert(first_data_is_read == 1);	
-			end
+
+			`ifdef ENABLE_TWIN_WRITE_TEST
 			
-			else if($past(read_en) && !$past(empty) && $past(second_data_is_written) && !$past(second_data_is_read))
-			begin
-				assert(second_data_read_out == $past(read_data));
-				assert(second_data_is_read == 1);
-			end
+				else if($past(read_en) && !$past(empty) && $past(first_data_is_written) && !$past(first_data_is_read) && !$past(second_data_is_read))
+				begin
+					assert(first_data_read_out == $past(read_data));				
+					assert(first_data_is_read == 1);	
+				end
+				
+				else if($past(read_en) && !$past(empty) && $past(second_data_is_written) && !$past(second_data_is_read))
+				begin
+					assert(second_data_read_out == $past(read_data));
+					assert(second_data_is_read == 1);
+				end
+				
+			`else
+				else begin
+					assert(first_data_read_out == $past(read_data));				
+					assert(first_data_is_read == 1);	
+					assert(second_data_read_out == $past(read_data));
+					assert(second_data_is_read == 1);									
+				end
+			`endif
 		end
 	end
 
@@ -497,11 +525,12 @@ module async_fifo
 		if(reset_wsync || finished_loop_writing)
 		begin
 			test_write_en <= 0;
+			test_write_data <= 0;
 		end
 		
 		else begin
-			if(second_data_is_read) test_write_en <= 1;  // starts after twin-write test
-			test_write_data <= test_write_data + 1;  // for easy tracking on write test progress
+			test_write_en <= second_data_is_read;  // starts after twin-write test
+			test_write_data <= test_write_data + second_data_is_read;  // for easy tracking on write test progress
 		end
 	end
 
@@ -535,6 +564,7 @@ module async_fifo
 		if(test_write_en) 
 		begin
 			assume(write_en);
+			assume(!read_en);  // write testing first, followed by read testing
 			assume(write_data == test_write_data);
 		end
 	end
@@ -542,6 +572,15 @@ module async_fifo
 	always @(posedge read_clk)
 	begin
 		if(test_read_en) assume(read_en);
+	end
+
+	always @(*)
+	begin
+		if(test_write_en || test_read_en)
+		begin
+			assume(!write_reset);
+			assume(!read_reset);
+		end
 	end
 		
 `endif
