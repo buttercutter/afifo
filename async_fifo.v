@@ -112,7 +112,7 @@ module async_fifo
         end
     end
 
-    assign read_data = fifo_data[read_ptr];
+    assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
 
     //
     // Write clock domain
@@ -140,7 +140,9 @@ module async_fifo
         .data_i(1'b0),
         .data_o(reset_wsync));
 
+	`ifdef FORMAL
 	integer i;
+	`endif
 
     always @(posedge write_clk)
     begin
@@ -159,7 +161,7 @@ module async_fifo
         
         else if (write_en && !full)
         begin
-            fifo_data[write_ptr] <= write_data;
+            fifo_data[write_ptr[ADDR_WIDTH-1:0]] <= write_data;  // passed verilator Warning-WIDTH
             write_ptr <= write_ptr_nxt;
             write_ptr_gray <= write_ptr_gray_nxt;
         end
@@ -516,16 +518,27 @@ module async_fifo
 
 	
 	// initially no testing
-	reg test_write_en, previous_test_write_en;
+	reg test_write_en;
 	reg test_read_en;	
 	initial test_write_en = 0;
 	initial test_read_en = 0;
-	initial previous_test_write_en = 0;	
 	
 	reg [$clog2(CYCLES_FOR_FULL_EMPTY_CHECK):0] test_write_data;
+
+	wire finished_loop_writing;
+	reg had_finished_loop_writing;
+	initial had_finished_loop_writing = 0;
+
+	always @(posedge write_clk) 
+	begin
+		if(reset_wsync) had_finished_loop_writing <= 0;
 	
-	wire finished_loop_writing =  // every FIFO entries had been visited at least twice
-			(write_counter_loop_around_fifo == 0) && (&previous_write_counter_loop_around_fifo);
+		else if(finished_loop_writing) had_finished_loop_writing <= 1;
+	end
+		
+	assign finished_loop_writing = (~had_finished_loop_writing) &&  // to make this a single clock pulse
+					// every FIFO entries had been visited at least twice
+					(write_counter_loop_around_fifo == 0) && (&previous_write_counter_loop_around_fifo);
 	
 	always @(posedge write_clk)
 	begin
@@ -541,17 +554,20 @@ module async_fifo
 		end
 	end
 
-	reg had_finished_loop_writing;
-	initial had_finished_loop_writing = 0;
+	wire finished_loop_reading;
+	reg had_finished_loop_reading;
+	initial had_finished_loop_reading = 0;
 
-	always @(posedge write_clk) 
+	always @(posedge read_clk) 
 	begin
-		previous_test_write_en <= test_write_en;
-		had_finished_loop_writing <= finished_loop_writing;
+		if(reset_rsync) had_finished_loop_reading <= 0;
+	
+		else if(finished_loop_reading) had_finished_loop_reading <= 1;
 	end
 
-	wire finished_loop_reading =  // every FIFO entries had been visited at least twice
-			(read_counter_loop_around_fifo == 0) && (&previous_read_counter_loop_around_fifo);
+	assign finished_loop_reading = (~had_finished_loop_reading) &&  // to make this a single clock pulse
+					// every FIFO entries had been visited at least twice
+					(read_counter_loop_around_fifo == 0) && (&previous_read_counter_loop_around_fifo);
 
 	always @(posedge read_clk)
 	begin
@@ -564,6 +580,32 @@ module async_fifo
 			test_read_en <= ((second_data_is_read) &&  // starts after twin-write test
 							 (had_finished_loop_writing));  // finished write testing;	
 		end
+	end
+
+	reg [1:0] finished_one_loop_test;  // {read_test, write_test}
+	initial finished_one_loop_test = 2'b00;
+	
+	always @($global_clock)
+	begin
+		if(&finished_one_loop_test)
+		begin
+			finished_one_loop_test <= 2'b00;
+		end
+		
+		else begin
+			if(finished_loop_writing) finished_one_loop_test <= 2'b01;
+			
+			else if(finished_loop_reading && (finished_one_loop_test == 2'b01)) finished_one_loop_test <= 2'b11;
+		end
+	end
+
+	localparam TOTAL_NUM_OF_LOOP_TESTS = 2;  // write -> read -> write -> read
+	reg [$clog2(TOTAL_NUM_OF_LOOP_TESTS):0] num_of_loop_tests_done;
+	initial num_of_loop_tests_done = 0;
+	
+	always @($global_clock)
+	begin
+		num_of_loop_tests_done <= num_of_loop_tests_done + (&finished_one_loop_test);
 	end
 
 	always @(posedge write_clk)
@@ -641,7 +683,7 @@ module async_fifo
 		cover($past(!empty)&&($past(read_en))&&(empty));
 		
 	always @(posedge read_clk)
-		cover(first_read_clock_had_passed && (finished_loop_reading));
+		cover(first_read_clock_had_passed && (num_of_loop_tests_done == 1)); // TOTAL_NUM_OF_LOOP_TESTS));
 		
 `endif
 
