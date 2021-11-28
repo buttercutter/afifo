@@ -253,6 +253,12 @@ module async_fifo
 			end						
 		end
 	end
+	
+	always @(posedge write_clk)
+	begin
+		if(reset_wsync_is_done) assume(write_data != 0);  // for easier debugging
+	end
+	
 `endif
 
 /*The following is a fractional clock divider code*/
@@ -682,8 +688,8 @@ module async_fifo
 	if (first_read_clock_had_passed && reset_rsync_is_done)
 		cover($past(!empty)&&($past(read_en))&&(empty));
 		
-	always @(posedge read_clk)
-		cover(first_read_clock_had_passed && (num_of_loop_tests_done == 1)); // TOTAL_NUM_OF_LOOP_TESTS));
+	always @($global_clock)
+		cover(first_read_clock_had_passed && (num_of_loop_tests_done == TOTAL_NUM_OF_LOOP_TESTS));
 		
 `endif
 
