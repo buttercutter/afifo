@@ -24,7 +24,7 @@
 // NUM_ENTRIES must be a power of two and >= 2
 //
 
-`default_nettype none
+//`default_nettype none
 
 // for writing and reading 2 different values into 2 different FIFO entry locations
 `define ENABLE_TWIN_WRITE_TEST 1
@@ -55,7 +55,7 @@ module async_fifo
     output		            full,
     input [WIDTH - 1:0]     write_data);
 
-    localparam ADDR_WIDTH = $clog2(NUM_ENTRIES);
+    parameter ADDR_WIDTH = $clog2(NUM_ENTRIES);
 
     wire [ADDR_WIDTH:0] write_ptr_sync;
     reg  [ADDR_WIDTH:0] read_ptr;
