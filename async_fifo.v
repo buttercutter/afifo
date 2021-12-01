@@ -46,7 +46,7 @@ module async_fifo
     // Read.
     input                   read_clk,
     input                   read_en,
-    output [WIDTH - 1:0]    read_data,
+    output reg [WIDTH - 1:0]    read_data,
     output 		            empty,
 
     // Write
@@ -112,7 +112,14 @@ module async_fifo
         end
     end
 
-    assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+    //assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+	// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/	
+	always @(posedge read_clk)
+	begin
+		if(reset_rsync) read_data <= 0;
+	
+		else if(!empty) read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+	end
 
     //
     // Write clock domain
@@ -193,6 +200,9 @@ module async_fifo
 
 	initial assume(write_reset);
 	initial assume(read_reset);
+	//always @($global_clock) 
+	//	assume(write_reset == read_reset);  // these are system-wide reset signals affecting all clock domains
+	
 	initial assume(empty);
 	initial assume(!full);
 
@@ -226,7 +236,6 @@ module async_fifo
 			begin
 				assert(write_ptr == 0);
 				assert(write_ptr_gray == 0);
-				assert(read_data == 0);
 			end
 
 			else if (!$rose(write_clk))
@@ -240,6 +249,7 @@ module async_fifo
 			begin
 				assert(read_ptr == 0);
 				assert(read_ptr_gray == 0);
+				assert(read_data == 0);
 				assert(empty);
 			end	
 
