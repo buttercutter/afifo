@@ -556,6 +556,8 @@ module async_fifo
 	assign finished_loop_writing = (~finished_loop_writing_previously) &&  // to make this a single clock pulse
 					// every FIFO entries had been visited at least once
 					(&previous_write_counter_loop_around_fifo);
+
+	wire test_write_enable = $anyseq;  // for synchronizing both 'test_write_en' and 'test_write_data' signals
 	
 	always @(posedge write_clk)
 	begin
@@ -567,10 +569,10 @@ module async_fifo
 		
 		else if(second_data_is_read)  // starts after twin-write test
 		begin
-			test_write_en <= $anyseq;
+			test_write_en <= test_write_enable;
 			
 			// for easy tracking on write test progress
-			test_write_data <= test_write_data + (!full);
+			test_write_data <= test_write_data + (!full && test_write_enable);
 		end
 		
 		else test_write_en <= 0;
