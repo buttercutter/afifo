@@ -74,8 +74,8 @@ module async_fifo
 	`ifdef FORMAL
 	initial read_ptr = 0;
 	initial write_ptr = 0;
-	initial assume(read_ptr_gray == 0);
-	initial assume(write_ptr_gray == 0);
+	initial read_ptr_gray = 0;
+	initial write_ptr_gray = 0;
 	initial assume(read_en == 0);
 	initial assume(write_en == 0);	
 	`endif
@@ -565,12 +565,15 @@ module async_fifo
 			test_write_data <= 0;
 		end
 		
-		else begin
-			test_write_en <= second_data_is_read;  // starts after twin-write test
+		else if(second_data_is_read)  // starts after twin-write test
+		begin
+			test_write_en <= $anyseq;
 			
 			// for easy tracking on write test progress
-			test_write_data <= test_write_data + (second_data_is_read && !full);
+			test_write_data <= test_write_data + (!full);
 		end
+		
+		else test_write_en <= 0;
 	end
 
 	wire finished_loop_reading;
@@ -595,9 +598,12 @@ module async_fifo
 			test_read_en <= 0;
 		end
 		
-		else begin
-			test_read_en <= second_data_is_read;  // starts after twin-write test	
+		else if(second_data_is_read)  // starts after twin-write test
+		begin
+			test_read_en <= $anyseq;
 		end
+		
+		else test_read_en <= 0;
 	end
 
 	reg finished_one_loop_test;
