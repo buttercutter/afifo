@@ -567,7 +567,9 @@ module async_fifo
 		
 		else begin
 			test_write_en <= second_data_is_read;  // starts after twin-write test
-			test_write_data <= test_write_data + second_data_is_read;  // for easy tracking on write test progress
+			
+			// for easy tracking on write test progress
+			test_write_data <= test_write_data + (second_data_is_read && !full);
 		end
 	end
 
@@ -623,6 +625,11 @@ module async_fifo
 		begin
 			assume(write_en);
 			assume(write_data == test_write_data);
+		end
+		
+		else if(second_data_is_written)  // after twin-write test, but before full/empty coverage
+		begin
+			assume(!write_en);
 		end
 	end
 
