@@ -122,12 +122,16 @@ module async_fifo
     end
 
     //assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
-	// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/	
+	// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/
 	always @(posedge read_clk)
 	begin
+		`ifdef FORMAL
 		if(reset_rsync) read_data <= 0;
 	
-		else if(!empty) read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+		else 
+		`endif
+		
+		if(!empty) read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
 	end
 
     //
@@ -139,7 +143,11 @@ module async_fifo
         .data_o(read_ptr_sync),
         .data_i(read_ptr_gray));
 
+
+	// As for why this is needed at all, see https://math.stackexchange.com/a/4314823/625099 and
+	// https://www.reddit.com/r/askmath/comments/r0hp2o/simple_gray_code_question/
 	reg [ADDR_WIDTH:0] full_check;
+	
     always @(posedge write_clk) 
     begin
     	if(full) full_check <= write_ptr_gray ^ read_ptr_sync;
@@ -149,6 +157,7 @@ module async_fifo
 
 	// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
     assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && (full_check[0 +: (ADDR_WIDTH-1)] == 0);
+
 
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
         .clk(write_clk),
@@ -210,7 +219,13 @@ module async_fifo
 
 	//always @($global_clock)
 		//assert($rose(reset_wsync)==$rose(reset_rsync));  // comment this out for experiment
-
+/*
+	always @($global_clock) 
+	begin
+		if(first_write_clock_had_passed && first_read_clock_had_passed)
+			assert(~empty || ~full);  // ensures that only one condition is satisfied
+	end
+*/
 	initial assume(write_reset);
 	initial assume(read_reset);
 	//always @($global_clock) 
@@ -506,9 +521,6 @@ module async_fifo
 	
 	// writes to FIFO for many clock cycles, then
 	// read from FIFO for many clock cycles
-	
-	// As for why this is needed at all, see https://math.stackexchange.com/a/4314823/625099 and
-	// https://www.reddit.com/r/askmath/comments/r0hp2o/simple_gray_code_question/
 	
 	// for this particular test, we need NUM_ENTRIES to be power of 2 
 	// since address rollover (MSB flipping) mechanism is used to check whether 
