@@ -37,7 +37,7 @@ module async_fifo
 			parameter WIDTH = 32,		
 		`endif
 		
-		parameter NUM_ENTRIES = 8
+		parameter NUM_ENTRIES = 4
     )
 
     (input                  write_reset,
@@ -155,9 +155,19 @@ module async_fifo
     	else full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
     end
 
-	// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
-    assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && (full_check[0 +: (ADDR_WIDTH-1)] == 0);
+	// compensates for the delay in synchronizer chain which results in 
+	// false-positive full detection
+	wire read_en_sync;
 
+	// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
+    assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && (full_check[0 +: (ADDR_WIDTH-1)] == 0) && (~read_en_sync);
+
+
+    synchronizer #(.WIDTH(1)) read_en_synchronizer(
+        .clk(write_clk),
+        .reset(reset_wsync),
+        .data_o(read_en_sync),
+        .data_i(read_en));
 
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
         .clk(write_clk),
