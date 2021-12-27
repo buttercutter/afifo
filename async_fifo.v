@@ -185,7 +185,7 @@ module async_fifo
 		
 		always @(*) 
 		begin
-			full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
+			full_check <= write_ptr_gray ^ read_ptr_sync;
 		end
 	`endif
 
