@@ -183,7 +183,7 @@ module async_fifo
 		// https://www.reddit.com/r/askmath/comments/r0hp2o/simple_gray_code_question/
 		reg [ADDR_WIDTH:0] full_check;
 		
-		always @(posedge write_clk) 
+		always @(*) 
 		begin
 			full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
 		end
