@@ -185,9 +185,7 @@ module async_fifo
 		
 		always @(posedge write_clk) 
 		begin
-			if(full) full_check <= write_ptr_gray ^ read_ptr_sync;
-			
-			else full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
+			full_check <= write_ptr_gray_nxt ^ read_ptr_sync;
 		end
 	`endif
 
@@ -199,7 +197,9 @@ module async_fifo
 		assign full = 0;
 	`else
 		`ifndef SIMPLER_FULL_LOGIC
-			// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
+			// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo
+			// and http://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf#page=19
+			    	
 			assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && 
 					  	  (full_check[0 +: (ADDR_WIDTH-1)] == 0);
 		`else
