@@ -26,6 +26,10 @@
 
 //`default_nettype none
 
+
+// enables this setting if read clock domain is having STA setup timing violations
+//`define STA_SETUP_ISSUE_IN_READ_DOMAIN 1
+
 // for writing and reading 2 different values into 2 different FIFO entry locations
 `define ENABLE_TWIN_WRITE_TEST 1
 
@@ -124,19 +128,42 @@ module async_fifo
         end
     end
 
-    //assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
-	// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/
-	always @(posedge read_clk)
-	begin
-		`ifdef FORMAL
-		if(reset_rsync) read_data <= 0;
-	
-		else 
-		`endif
-		
-		if(!empty) read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
-	end
 
+	`ifdef STA_SETUP_ISSUE_IN_READ_DOMAIN
+	
+		reg [WIDTH - 1:0] previous_read_data;
+		always @(posedge read_clk) read_data <= previous_read_data;  // register retiming technique for STA setup
+	
+		//assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+		// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/
+		always @(posedge read_clk)
+		begin
+			`ifdef FORMAL
+			if(reset_rsync) previous_read_data <= 0;
+		
+			else 
+			`endif
+			
+			if(!empty) previous_read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+		end
+		
+	`else
+	
+		//assign read_data = fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+		// See https://www.edaboard.com/threads/asychronous-fifo-read_data-is-not-entirely-in-phase-with-read_ptr.400461/
+		always @(posedge read_clk)
+		begin
+			`ifdef FORMAL
+			if(reset_rsync) read_data <= 0;
+		
+			else 
+			`endif
+			
+			if(!empty) read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
+		end
+			
+	`endif
+	
     //
     // Write clock domain
     //
