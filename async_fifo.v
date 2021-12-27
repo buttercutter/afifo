@@ -29,7 +29,7 @@
 
 // enables this setting if it improves STA setup timing violations in read clock domain
 // the performance may vary across different user design and different EDA STA engines
-//`define STA_SETUP_ISSUE_IN_READ_DOMAIN 1
+//`define REGISTER_RETIMING_FOR_READ_DATA 1
 
 // for writing and reading 2 different values into 2 different FIFO entry locations
 `define ENABLE_TWIN_WRITE_TEST 1
@@ -41,11 +41,11 @@ module async_fifo
     #(
     	`ifdef FORMAL
 			parameter WIDTH = 4,
+			parameter NUM_ENTRIES = 8
 		`else
 			parameter WIDTH = 32,		
+			parameter NUM_ENTRIES = 4
 		`endif
-		
-		parameter NUM_ENTRIES = 4
     )
 
     (input                  write_reset,
@@ -130,7 +130,7 @@ module async_fifo
     end
 
 
-	`ifdef STA_SETUP_ISSUE_IN_READ_DOMAIN
+	`ifdef REGISTER_RETIMING_FOR_READ_DATA
 	
 		reg [WIDTH - 1:0] previous_read_data;
 		always @(posedge read_clk) read_data <= previous_read_data;  // register retiming technique for STA setup
