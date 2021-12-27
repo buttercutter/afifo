@@ -27,7 +27,8 @@
 //`default_nettype none
 
 
-// enables this setting if read clock domain is having STA setup timing violations
+// enables this setting if it improves STA setup timing violations in read clock domain
+// the performance may vary across different user design and different EDA STA engines
 //`define STA_SETUP_ISSUE_IN_READ_DOMAIN 1
 
 // for writing and reading 2 different values into 2 different FIFO entry locations
@@ -187,7 +188,9 @@ module async_fifo
 
 	`ifdef READ_CLOCK_IS_FASTER_AND_READ_EN_IS_ASSERTED_FOREVER
 		// compensates for the delay in synchronizer chain which results in false-positive full detection
-		// However, careful selection of NUM_ENTRIES is necessary for proper operation
+		// STA setup issue in read clock domain is solved by choosing not to increase NUM_ENTRIES when full logic
+		// is now correctly implemented for certain corner simulation coverage case, 
+		// taking into account the cycles delay brought by the 'read_ptr_synchronizer' synchronizer chain.
 		assign full = 0;
 	`else
 		// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo    	
