@@ -37,9 +37,6 @@
 // to simplify 'full' logic when the condition within read clock domain allows
 //`define READ_CLOCK_IS_FASTER_AND_READ_EN_IS_ASSERTED_FOREVER 1
 
-// enables this setting when there is STA setup violation within write clock domain
-//`define SIMPLER_FULL_LOGIC 1
-
 
 module async_fifo
     #(
@@ -178,16 +175,6 @@ module async_fifo
         .data_o(read_ptr_sync),
         .data_i(read_ptr_gray));
 
-	`ifndef SIMPLER_FULL_LOGIC
-		// As for why this is needed at all, see https://math.stackexchange.com/a/4314823/625099 and
-		// https://www.reddit.com/r/askmath/comments/r0hp2o/simple_gray_code_question/
-		reg [ADDR_WIDTH:0] full_check;
-		
-		always @(*) 
-		begin
-			full_check <= write_ptr_gray ^ read_ptr_sync;
-		end
-	`endif
 
 	`ifdef READ_CLOCK_IS_FASTER_AND_READ_EN_IS_ASSERTED_FOREVER
 		// compensates for the delay in synchronizer chain which results in false-positive full detection
@@ -196,26 +183,11 @@ module async_fifo
 		// taking into account the cycles delay brought by the 'read_ptr_synchronizer' synchronizer chain.
 		assign full = 0;
 	`else
-		`ifndef SIMPLER_FULL_LOGIC
-			// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo
-			// and http://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf#page=19
-			    	
-			assign full = (full_check[ADDR_WIDTH] & full_check[ADDR_WIDTH-1]) && 
-					  	  (full_check[0 +: (ADDR_WIDTH-1)] == 0);
-		`else
-			// The FIFO is full when (write_ptr + 1) % FIFO_SIZE == read_ptr. 
-			// The side effect of this is that the FIFO capacity is actually FIFO_SIZE - 1: 
-			// one slot is always empty, even when the FIFO is "full"
-			// This is a tradeoff that simplifies the 'full' logic.
-			
-			// To explain the tradeoff more formally: 
-			// the full logic compares write_ptr_gray_nxt to read_ptr_sync. 
-			// Since write_ptr_gray_nxt != write_ptr_gray which is also the same in the non-gray-coded version, 
-			// fully-utilized FIFO technically should not be able to occur because
-			// (write_ptr_nxt is always (write_ptr + 1) % FIFO_SIZE).
-			
-			assign full = (write_ptr_gray_nxt == read_ptr_sync);
-		`endif
+		// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo
+		// and http://www.sunburst-design.com/papers/CummingsSNUG2002SJ_FIFO1.pdf#page=19
+		
+		assign full = (write_ptr_gray == {~read_ptr_sync[ADDR_WIDTH:ADDR_WIDTH-1], 
+										   read_ptr_sync[0 +: (ADDR_WIDTH-1)]});
     `endif
 
     synchronizer #(.RESET_STATE(1)) write_reset_synchronizer(
