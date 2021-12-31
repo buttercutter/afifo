@@ -34,8 +34,9 @@
 //`define READ_CLOCK_IS_FASTER_AND_READ_EN_IS_ASSERTED_FOREVER 1
 
 // enables this setting if the asynchronous FIFO has non-power-of-two of location entries
-// However, this settings might cause STA setup issue given extra tcomb for manual rollover logic
-//`define NUM_ENTRIES_IS_NON_POWER_OF_TWO 1
+// However, this settings might cause STA setup issue in write clock domain
+// given the extra tcomb for manual rollover logic and gray2bin logic for 'full' detection
+`define NUM_ENTRIES_IS_NON_POWER_OF_TWO 1
 
 // enables this setting if it improves STA setup timing violations in read clock domain
 // the performance may vary across different user design and different EDA STA engines
@@ -54,7 +55,13 @@ module async_fifo
 			
 			parameter WIDTH = $clog2(NUM_ENTRIES << 1)  // index as data for loop testing
 		`else
-			parameter NUM_ENTRIES = 4,
+		
+			`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+				parameter NUM_ENTRIES = 10,  // for checking using non-power-of-two values
+			`else
+				parameter NUM_ENTRIES = 4,
+			`endif
+			
 			parameter WIDTH = 32
 		`endif
     )
@@ -162,12 +169,19 @@ module async_fifo
 	// So for 10, we run it from 3 to 12
 	
 	`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
-		
-		localparam [ADDR_WIDTH-1:0] UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER = 
-						{ADDR_WIDTH{1'b1}} - (({ADDR_WIDTH{1'b1}} + 1'b1 - NUM_ENTRIES) >> 1);
-						
-		localparam [ADDR_WIDTH-1:0] LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER =
-						UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER - NUM_ENTRIES + 1;
+		`ifdef FORMAL
+			// for easier waveform debugging
+			(* keep *)
+		`endif
+		localparam [POINTER_WIDTH:0] UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER = 
+					{ADDR_WIDTH{1'b1}} - (({ADDR_WIDTH{1'b1}} + 1'b1 - NUM_ENTRIES[POINTER_WIDTH:0]) >> 1);
+
+		`ifdef FORMAL
+			// for easier waveform debugging
+			(* keep *)
+		`endif						
+		localparam [POINTER_WIDTH:0] LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER =
+					UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER - NUM_ENTRIES[POINTER_WIDTH:0] + 1;
 	`endif
 	
 
@@ -330,12 +344,23 @@ module async_fifo
 		assign full = 0;
 	`else
 		`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+
+			// compares pointers in binary because no simple logic to do arithmetic with gray codes
+			wire [POINTER_WIDTH:0] read_ptr_sync_in_binary;
+
+			generate genvar bin_i;
+				for (bin_i=0; bin_i<POINTER_WIDTH; bin_i=bin_i+1) begin : gray_to_binary
+				
+					assign read_ptr_sync_in_binary[bin_i] = 
+									^read_ptr_sync[POINTER_WIDTH-1:bin_i];
+				end
+			endgenerate
 		
 			// We cannot use MSB. We have to check whether the pointers are in different halves.
 			// Run the pointers to 2x depth like before. 
 			// And full when wr ptr = rd ptr + depth. Adjust for wrap around etc.
 			
-			assign full = (write_ptr == read_ptr + NUM_ENTRIES - 1);
+			assign full = (write_ptr == read_ptr_sync_in_binary + NUM_ENTRIES[POINTER_WIDTH:0] - 1);
 			
 		`else
 			// See https://electronics.stackexchange.com/questions/596233/address-rollover-for-asynchronous-fifo
