@@ -349,10 +349,10 @@ module async_fifo
 			wire [POINTER_WIDTH:0] read_ptr_sync_in_binary;
 
 			generate genvar bin_i;
-				for (bin_i=0; bin_i<POINTER_WIDTH; bin_i=bin_i+1) begin : gray_to_binary
+				for (bin_i=0; bin_i<=POINTER_WIDTH; bin_i=bin_i+1) begin : gray_to_binary
 				
 					assign read_ptr_sync_in_binary[bin_i] = 
-									^read_ptr_sync[POINTER_WIDTH-1:bin_i];
+									^read_ptr_sync[POINTER_WIDTH:bin_i];
 				end
 			endgenerate
 		
