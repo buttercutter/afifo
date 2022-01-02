@@ -176,18 +176,12 @@ module async_fifo
 		localparam [POINTER_WIDTH:0] UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER = 
 					{ADDR_WIDTH{1'b1}} - (({ADDR_WIDTH{1'b1}} + 1'b1 - NUM_ENTRIES[POINTER_WIDTH:0]) >> 1);
 
-		parameter [POINTER_WIDTH:0] INITIAL_VALUE_OF_POINTER_SYNCHRONIZERS = 
-											LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER ^
-    	         						   (LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER >> 1);
 		`ifdef FORMAL
 			// for easier waveform debugging
 			(* keep *)
 		`endif						
 		localparam [POINTER_WIDTH:0] LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER =
 					UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER - NUM_ENTRIES[POINTER_WIDTH:0] + 1;
-
-	`else
-		parameter [POINTER_WIDTH:0] INITIAL_VALUE_OF_POINTER_SYNCHRONIZERS = 0;					
 	`endif
 	
 
@@ -229,12 +223,7 @@ module async_fifo
     //
     // Read clock domain
     //
-    synchronizer 
-    #(
-    	.WIDTH(POINTER_WIDTH+1),
-    	.RESET_STATE(INITIAL_VALUE_OF_POINTER_SYNCHRONIZERS)
-    )
-    write_ptr_synchronizer(
+    synchronizer #(.WIDTH(POINTER_WIDTH+1)) write_ptr_synchronizer(
         .clk(read_clk),
         .reset(reset_rsync),
         .data_o(write_ptr_sync),
@@ -259,12 +248,11 @@ module async_fifo
         	`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
         	
 	            read_ptr <= LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER;
-	            read_ptr_gray <= LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER ^
-    	         				(LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER >> 1);	            
 	        `else
 	        	read_ptr <= 0;
-	        	read_ptr_gray <= 0;
 	        `endif
+	        
+            read_ptr_gray <= 0;
         end
         
         else if (read_en && !empty)
@@ -341,12 +329,7 @@ module async_fifo
     //
     // Write clock domain
     //
-    synchronizer 
-    #(
-    	.WIDTH(POINTER_WIDTH+1),
-    	.RESET_STATE(INITIAL_VALUE_OF_POINTER_SYNCHRONIZERS)
-    )
-    read_ptr_synchronizer(
+    synchronizer #(.WIDTH(POINTER_WIDTH+1)) read_ptr_synchronizer(
         .clk(write_clk),
         .reset(reset_wsync),
         .data_o(read_ptr_sync),
@@ -411,15 +394,14 @@ module async_fifo
 				end    
             `endif
 
-        	`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
-        	
-	            write_ptr <= LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER;
-	            write_ptr_gray <= LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER ^
-								 (LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER >> 1);	            
-	        `else
-	        	write_ptr <= 0;
-	        	write_ptr_gray <= 0;
-	        `endif
+			`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+			
+				write_ptr <= LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER;
+			`else
+            	write_ptr <= 0;
+            `endif
+            
+            write_ptr_gray <= 0;
         end
         
         else if (write_en && !full)
@@ -507,15 +489,8 @@ module async_fifo
 		begin
 			if($past(reset_wsync) && ($rose(write_clk)))
 			begin
-				`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
-				
-					assert(write_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
-					assert(write_ptr_gray == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER ^
-									 		(LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER >> 1));
-				`else
-					assert(write_ptr == 0);
-					assert(write_ptr_gray == 0);				
-				`endif									 		
+				assert(write_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
+				assert(write_ptr_gray == 0);
 			end
 
 			else if (!$rose(write_clk))
@@ -527,20 +502,10 @@ module async_fifo
 			
 			if($past(reset_rsync) && ($rose(read_clk)))
 			begin
-				`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
-				
-					assert(read_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
-					assert(read_ptr_gray == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER ^
-									 	   (LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER >> 1));
-				`else
-					assert(read_ptr == 0);
-					assert(read_ptr_gray == 0);				
-				`endif
-				
+				assert(read_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
+				assert(read_ptr_gray == 0);
 				assert(read_data == 0);
-				
-				if(first_write_clock_had_passed) 
-					assert(empty);  // 'empty' needs both 'reset_rsync' and 'reset_wsync' to have been executed
+				assert(empty);
 			end	
 
 			else if (!$rose(read_clk))

@@ -36,9 +36,9 @@ module synchronizer
     begin
         if (reset)
         begin
-            sync0 <=  {RESET_STATE[WIDTH-1:0]};  // to remove lint Warning-WIDTHCONCAT
-            sync1 <=  {RESET_STATE[WIDTH-1:0]};  // to remove lint Warning-WIDTHCONCAT
-            data_o <= {RESET_STATE[WIDTH-1:0]};  // to remove lint Warning-WIDTHCONCAT
+            sync0 <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
+            sync1 <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
+            data_o <= {WIDTH{RESET_STATE[0:0]}};  // to remove lint Warning-WIDTHCONCAT
         end
         else
         begin
