@@ -52,5 +52,33 @@ module synchronizer
     	initial data_o = 0;
     	initial sync0 = 0;
     	initial sync1 = 0;
+    	
+    	reg first_clk_had_passed = 0;
+    	always @(posedge clk) first_clk_had_passed <= 1;
+    	
+    	always @(posedge clk)
+    	begin
+    		if(first_clk_had_passed)
+    		begin
+    			if($past(reset))
+    			begin
+				    assert(sync0 ==  {RESET_STATE[WIDTH-1:0]});  // to remove lint Warning-WIDTHCONCAT
+				    assert(sync1 ==  {RESET_STATE[WIDTH-1:0]});  // to remove lint Warning-WIDTHCONCAT
+				    assert(data_o == {RESET_STATE[WIDTH-1:0]});  // to remove lint Warning-WIDTHCONCAT    				
+    			end
+    			
+    			else begin
+				    assert(sync0 == $past(data_i));
+				    assert(sync1 == $past(sync0));
+				    assert(data_o == $past(sync1));     			
+    			end
+    		end
+    		
+    		else begin
+		        assert(sync0 == 0);
+		        assert(sync1 == 0);
+		        assert(data_o == 0);    		
+    		end
+    	end
     `endif
 endmodule
