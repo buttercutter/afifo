@@ -1059,7 +1059,12 @@ module async_fifo
 		begin
 			if($past(second_data_is_read))
 			begin			
-				if(~$past(empty) && ~$past(empty, NUM_OF_SYNC_FF-1) && $past(read_en)) assert(read_data == $past(read_data) + 1);
+				if(~$past(empty) && ~$past(empty, NUM_OF_SYNC_FF-1) && $past(read_en)) 
+				begin
+					if(read_data == 1) assert($past(read_data) == second_data);
+						
+					else assert(read_data == $past(read_data) + 1);
+				end
 				
 				else assert(read_data <= {WIDTH{1'b1}});  // don't care 
 			end
