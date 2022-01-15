@@ -1061,7 +1061,7 @@ module async_fifo
 			begin			
 				if(~$past(empty) && ~$past(empty, NUM_OF_SYNC_FF-1) && $past(read_en)) assert(read_data == $past(read_data) + 1);
 				
-				else assert(read_data == $past(read_data));
+				else assert(read_data <= {WIDTH{1'b1}});  // don't care 
 			end
 		
 			else begin
