@@ -705,6 +705,21 @@ module async_fifo
 		end
 	end
 
+	always @(*)
+	begin
+		if(~first_write_clock_had_passed)
+		begin
+			assert(first_data_is_written == 0);
+			assert(second_data_is_written == 0);
+		end
+		
+		if(~first_read_clock_had_passed)
+		begin
+			assert(first_data_is_read == 0);
+			assert(second_data_is_read == 0);		
+		end		
+	end
+
 	always @(posedge write_clk)
 	begin
 		if(first_write_clock_had_passed)
@@ -734,7 +749,7 @@ module async_fifo
 					assert($past(first_data) == fifo_data[first_address]);
 				end
 				
-				else if($past(write_en) && !$past(full) && !$past(second_data_is_written))
+				else if($past(write_en) && !$past(full) && $past(first_data_is_written) && !$past(second_data_is_written))
 				begin
 					assert(first_data_is_written == 1);
 					assert(second_data_is_written == 1);
@@ -752,7 +767,17 @@ module async_fifo
 				else begin
 					if(second_data_is_written) assert(first_data_is_written);
 					
-					else assert(first_data_is_written == $past(first_data_is_written));
+					else begin
+						assert(~second_data_is_written);
+						assert(first_data_is_written == $past(first_data_is_written));
+					end
+					
+					if(~first_data_is_written) assert(~second_data_is_written);
+					
+					else begin
+						assert(first_data_is_written);
+						assert(second_data_is_written == $past(second_data_is_written));
+					end
 				end
 			end
 		end
@@ -837,6 +862,18 @@ module async_fifo
 					assert($stable(second_data_is_read));
 					
 					if(second_data_is_read) assert(first_data_is_read);
+					
+					else begin
+						assert(~second_data_is_read);
+						assert(first_data_is_read == $past(first_data_is_read));
+					end
+					
+					if(~first_data_is_read) assert(~second_data_is_read);
+					
+					else begin
+						assert(first_data_is_read);
+						assert(second_data_is_read == $past(second_data_is_read));
+					end
 				end				
 				
 			`else
@@ -1040,14 +1077,19 @@ module async_fifo
 	
 		for(fifo_check_index = 0; fifo_check_index < NUM_ENTRIES;
 			fifo_check_index = fifo_check_index + 1)
-		begin : check_fifo_data_X_state
-		
-			always @(*)
+		begin : check_fifo_data_state
+			
+			always @($global_clock)
 			begin
-				if(reset_wsync_is_done) 
-					// none other than unknown 'X' state
-					assert(fifo_data[fifo_check_index] >= 0);
-			end
+				if(first_write_clock_had_passed) 
+				begin					
+					if(reset_wsync_is_done) 
+						// none other than unknown 'X' state
+						assert(fifo_data[fifo_check_index] >= 0);
+					
+					else assert(fifo_data[fifo_check_index] == 0);					
+				end
+			end			
 		end
 	endgenerate
 
