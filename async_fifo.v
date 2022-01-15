@@ -280,14 +280,14 @@ module async_fifo
 			
 			`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
 			
-				if(!empty) 
+				if(read_en && !empty) 
 				begin
 					previous_read_data <= fifo_data[read_ptr - LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER];
 				end
 			
 			`else
 			
-				if(!empty) 
+				if(read_en && !empty) 
 				begin
 					previous_read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
 				end			
@@ -309,14 +309,14 @@ module async_fifo
 			
 			`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
 			
-				if(!empty) 
+				if(read_en && !empty) 
 				begin
 					read_data <= fifo_data[read_ptr - LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER];
 				end
 			
 			`else
 			
-				if(!empty) 
+				if(read_en && !empty) 
 				begin
 					read_data <= fifo_data[read_ptr[ADDR_WIDTH-1:0]];  // passed verilator Warning-WIDTH
 				end			
