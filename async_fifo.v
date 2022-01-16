@@ -419,6 +419,45 @@ module async_fifo
         end
     end
 
+`ifdef FORMAL
+
+    always @(posedge write_clk)
+    begin
+    	if(first_write_clock_had_passed)
+    	begin
+		    if ($past(reset_wsync))
+		    begin
+				`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+				
+					assert(write_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
+				`else
+		        	assert(write_ptr == 0);
+		        `endif
+		        
+		        assert(write_ptr_gray == 0);
+		    end
+		    
+		    else if ($past(write_en) && !$past(full))
+		    begin
+		    	`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+		    	
+			        assert(fifo_data[$past(write_ptr) -
+			         	   LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER] == $past(write_data));
+			        
+			    `else
+			    	assert(fifo_data[$past(write_ptr[ADDR_WIDTH-1:0])] ==
+			    	 	   $past(write_data));  // passed verilator Warning-WIDTH
+			    `endif
+			    
+		        assert(write_ptr == $past(write_ptr_nxt));
+		        assert(write_ptr_gray == $past(write_ptr_gray_nxt));
+		    end
+		end
+    end
+
+`endif
+
+
 /*See https://zipcpu.com/blog/2018/07/06/afifo.html for a formal proof of afifo in general*/
 
 `ifdef FORMAL
