@@ -325,6 +325,64 @@ module async_fifo
 		end
 			
 	`endif
+
+
+`ifdef FORMAL
+
+    always @(posedge read_clk)
+    begin
+    	if(first_read_clock_had_passed)
+    	begin
+		    if ($past(reset_rsync))
+		    begin
+		    	`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+		    	
+			        assert(read_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);
+			    `else
+			    	assert(read_ptr == 0);
+			    `endif
+			    
+		        assert(read_ptr_gray == 0);
+		    end
+		    
+		    else if ($past(read_en) && !$past(empty))
+		    begin
+		        assert(read_ptr == $past(read_ptr_nxt));
+		        assert(read_ptr_gray == $past(read_ptr_gray_nxt));
+		        
+				`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+
+					`ifdef REGISTER_RETIMING_FOR_READ_DATA					
+						assert(previous_read_data == 
+					`else
+						assert(read_data ==
+					`endif
+							fifo_data[$past(read_ptr) -
+							 			LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER]);
+				
+					if($past(read_ptr) == UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER)
+					begin 
+						assert(read_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);  // needs manual rollover
+					end
+
+					else assert(read_ptr == $past(read_ptr) + 1);  // no need manual rollover
+					
+				`else
+					`ifdef REGISTER_RETIMING_FOR_READ_DATA					
+						assert(previous_read_data == 
+					`else
+						assert(read_data ==
+					`endif
+							fifo_data[$past(read_ptr[ADDR_WIDTH-1:0]]));  // passed verilator Warning-WIDTH					
+					assert(read_ptr == $past(read_ptr) + 1);  // no need manual rollover
+				`endif
+									        
+		    end
+		end
+    end
+
+`endif
+
 	
     //
     // Write clock domain
@@ -451,6 +509,19 @@ module async_fifo
 			    
 		        assert(write_ptr == $past(write_ptr_nxt));
 		        assert(write_ptr_gray == $past(write_ptr_gray_nxt));
+		        
+				`ifdef NUM_ENTRIES_IS_NON_POWER_OF_TWO
+				
+					if($past(write_ptr) == UPPER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER)
+					begin 
+						assert(write_ptr == LOWER_BINARY_LIMIT_FOR_GRAY_POINTER_ROLLOVER);  // needs manual rollover
+					end
+					
+					else assert(write_ptr == $past(write_ptr) + 1);  // no need manual rollover
+					
+				`else	
+					assert(write_ptr == $past(write_ptr) + 1);  // no need manual rollover
+				`endif		        
 		    end
 		end
     end
@@ -920,7 +991,10 @@ module async_fifo
 					assert(first_data_read_out == $past(read_data));				
 					assert(first_data_is_read == 1);	
 					assert(second_data_read_out == $past(read_data));
-					assert(second_data_is_read == 1);									
+					assert(second_data_is_read == 1);	
+													
+					assert($stable(second_data_read_out));
+					assert($stable(second_data_is_read));					
 				end
 			`endif
 		end
@@ -1118,15 +1192,15 @@ module async_fifo
 			fifo_check_index = fifo_check_index + 1)
 		begin : check_fifo_data_state
 			
-			always @($global_clock)
+			always @(posedge write_clk)
 			begin
 				if(first_write_clock_had_passed) 
 				begin					
-					if(reset_wsync_is_done) 
+					if($past(reset_wsync)) 
 						// none other than unknown 'X' state
-						assert(fifo_data[fifo_check_index] >= 0);
+						assert(fifo_data[fifo_check_index] == {WIDTH{1'b0}});
 					
-					else assert(fifo_data[fifo_check_index] == 0);					
+					else assert(fifo_data[fifo_check_index] <= {WIDTH{1'b1}});  // don't care
 				end
 			end			
 		end
